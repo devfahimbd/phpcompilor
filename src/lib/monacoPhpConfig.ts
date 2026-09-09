@@ -42,14 +42,40 @@ export function setupMonacoPhp(monaco: Monaco) {
 
   // Register rich PHP autocomplete suggestions
   monaco.languages.registerCompletionItemProvider('php', {
-    triggerCharacters: ['<', '$', ':', '>', '{', ' '],
+    triggerCharacters: ['<', '?', '$', ':', '>', '{', ' '],
     provideCompletionItems: (model: any, position: any) => {
+      const lineContent = model.getLineContent(position.lineNumber);
+      const textUntilPosition = lineContent.substring(0, position.column - 1);
+
+      // 1. Tag range (replaces typed prefix like <, <?, <?p, <?php, <?=)
+      const tagMatch = textUntilPosition.match(/(<[\?a-zA-Z=]*)$/);
+      const tagStartCol = tagMatch ? position.column - tagMatch[1].length : position.column;
+      const tagRange = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: tagStartCol,
+        endColumn: position.column,
+      };
+
+      // 2. Variable range (replaces $, $_, $var)
+      const varMatch = textUntilPosition.match(/(\$[a-zA-Z0-9_]*)$/);
+      const varStartCol = varMatch ? position.column - varMatch[1].length : position.column;
+      const varRange = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: varStartCol,
+        endColumn: position.column,
+      };
+
+      // 3. Word range (for general words, functions, keywords)
       const word = model.getWordUntilPosition(position);
+      const wordMatch = textUntilPosition.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
+      const wordStartCol = wordMatch ? position.column - wordMatch[1].length : word.startColumn;
       const range = {
         startLineNumber: position.lineNumber,
         endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn,
+        startColumn: wordStartCol,
+        endColumn: position.column,
       };
 
       const suggestions: any[] = [
@@ -60,7 +86,7 @@ export function setupMonacoPhp(monaco: Monaco) {
           insertText: '<?php\n\t$0\n?>',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Full PHP tag block',
-          range,
+          range: tagRange,
         },
         {
           label: '<?= ... ?> (Short echo)',
@@ -68,7 +94,7 @@ export function setupMonacoPhp(monaco: Monaco) {
           insertText: '<?= $0 ?>',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Short echo tag for template output',
-          range,
+          range: tagRange,
         },
         {
           label: '<?php echo',
@@ -76,7 +102,7 @@ export function setupMonacoPhp(monaco: Monaco) {
           insertText: '<?php echo $0; ?>',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Echo inside inline PHP tag',
-          range,
+          range: tagRange,
         },
 
         // Control structures
@@ -162,7 +188,7 @@ export function setupMonacoPhp(monaco: Monaco) {
           insertText: '$_GET[\'${1:key}\']',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Superglobal: HTTP GET variables',
-          range,
+          range: varRange,
         },
         {
           label: '$_POST',
@@ -170,7 +196,7 @@ export function setupMonacoPhp(monaco: Monaco) {
           insertText: '$_POST[\'${1:key}\']',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Superglobal: HTTP POST variables',
-          range,
+          range: varRange,
         },
         {
           label: '$_SERVER',
@@ -178,7 +204,7 @@ export function setupMonacoPhp(monaco: Monaco) {
           insertText: '$_SERVER[\'${1:REQUEST_METHOD}\']',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Superglobal: Server and execution environment information',
-          range,
+          range: varRange,
         },
 
         // File includes

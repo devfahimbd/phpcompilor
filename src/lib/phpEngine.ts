@@ -595,7 +595,9 @@ export class PhpEngine {
   /**
    * Transpiles PHP code with mixed HTML templates into executable JS statements.
    */
-  private transpilePhpToJs(phpCode: string): string {
+  private transpilePhpToJs(rawPhpCode: string): string {
+    // Sanitize any accidental duplicate opening angle brackets e.g. <<?php -> <?php
+    const phpCode = rawPhpCode.replace(/<+(<\?(?:php|=)?)/g, '$1');
     let outJs = '';
     let pos = 0;
     const len = phpCode.length;
