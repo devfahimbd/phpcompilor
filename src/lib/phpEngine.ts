@@ -643,7 +643,7 @@ export class PhpEngine {
 
       if (isEchoTag) {
         // Short echo: <?= expr ?> -> echo expr;
-        const expr = this.convertPhpExpressions(phpSnippet.trim().replace(/;$/, ''));
+        const expr = this.convertExpression(phpSnippet.trim().replace(/;$/, ''));
         outJs += `__output(${expr});\n`;
       } else {
         outJs += this.convertPhpBlock(phpSnippet) + '\n';
@@ -665,43 +665,48 @@ export class PhpEngine {
     // Handle alternative syntax:
     // if (...): -> if (...) {
     // endif; -> }
-    // foreach (...): -> foreach (...) {
-    // endforeach; -> }
-    // for (...): -> for (...) {
-    // endfor; -> }
-    // while (...): -> while (...) {
-    // endwhile; -> }
     s = s.replace(/:\s*(\/\/.*)?$/gm, ' { $1');
     s = s.replace(/\b(endif|endforeach|endfor|endwhile|endswitch)\s*;/g, '}');
 
-    // Convert PHP string concatenation operator '.' into '+'
-    // Carefully handle variable dots or string dots
-    s = this.convertPhpExpressions(s);
+    // Convert include / require statements without parentheses:
+    // include 'file.php'; -> include('file.php');
+    s = s.replace(/\b(include|require|include_once|require_once)\s+(['"][^'"]+['"]|[a-zA-Z0-9_$\.]+)\s*;/g, '$1($2);');
 
     // Convert echo "hello", "world";
     s = s.replace(/\becho\b\s+([^;]+);/g, (match, args) => {
       const parts = this.splitPhpArgs(args);
-      return parts.map((p) => `__output(${p.trim()});`).join(' ');
+      return parts.map((p) => `__output(${this.convertExpression(p.trim())});`).join(' ');
     });
 
     // Convert print "hello";
     s = s.replace(/\bprint\b\s+([^;]+);/g, (match, arg) => {
-      return `__output(${arg.trim()});`;
+      return `__output(${this.convertExpression(arg.trim())});`;
     });
+
+    // General expressions and statements
+    s = this.convertGeneralStatements(s);
 
     return s;
   }
 
   /**
-   * Transforms PHP expressions:
-   * - Variables: $varName -> varName (and initializes on assignment if undeclared)
-   * - String concat: . -> +
-   * - Arrays: array(...) / [...]
-   * - Associative arrays: ['key' => 'val'] -> ({ 'key': 'val' })
-   * - Object access: $obj->prop -> obj.prop
-   * - Foreach: foreach ($arr as $k => $v) / foreach ($arr as $v)
+   * Transforms individual expression:
    */
-  private convertPhpExpressions(code: string): string {
+  private convertExpression(expr: string): string {
+    let e = expr;
+    e = this.replaceConcatDots(e);
+    e = e.replace(/\[\s*([^\]]*=>[^\]]*)\]/g, (m, inner) => `({ ${inner.replace(/=>/g, ':')} })`);
+    e = e.replace(/\barray\s*\(\s*([^)]*=>[^)]*)\)/g, (m, inner) => `({ ${inner.replace(/=>/g, ':')} })`);
+    e = e.replace(/\barray\s*\(\s*([^)]*)\)/g, '[$1]');
+    e = e.replace(/\$_([A-Z_]+)/g, '_$1');
+    e = e.replace(/\$([a-zA-Z0-9_]+)/g, '$1');
+    return e;
+  }
+
+  /**
+   * Transforms general PHP statements:
+   */
+  private convertGeneralStatements(code: string): string {
     let res = code;
 
     // Convert foreach ($items as $item) or foreach ($items as $k => $v)
@@ -713,8 +718,10 @@ export class PhpEngine {
     // Convert PHP object arrows: -> into .
     res = res.replace(/->/g, '.');
 
+    // Convert string concatenation dots safely outside of quotes
+    res = this.replaceConcatDots(res);
+
     // Convert associative array arrow '=>' to ':'
-    // ['a' => 1, 'b' => 2] -> ({ a: 1, b: 2 })
     res = res.replace(/\[\s*([^\]]*=>[^\]]*)\]/g, (match, inner) => {
       const convertedInner = inner.replace(/=>/g, ':');
       return `({ ${convertedInner} })`;
@@ -727,32 +734,19 @@ export class PhpEngine {
     });
     res = res.replace(/\barray\s*\(\s*([^)]*)\)/g, '[$1]');
 
-    // Convert PHP string concatenation:
-    // We need to avoid changing decimals like 3.14 or properties like obj.prop
-    // Replace "str" . "str" or $a . $b or 'str' . $b
-    res = res.replace(/(\$?[a-zA-Z0-9_\)\]"'])\s*\.\s*(\$?[a-zA-Z0-9_\(\["'])/g, '$1 + $2');
-    res = res.replace(/(\$?[a-zA-Z0-9_\)\]"'])\s*\.\s*(\$?[a-zA-Z0-9_\(\["'])/g, '$1 + $2'); // double pass for chained concats
-
     // Convert superglobals:
-    // $_GET['x'] -> _GET['x']
-    // $_POST['x'] -> _POST['x']
-    // $_SERVER['x'] -> _SERVER['x']
     res = res.replace(/\$_([A-Z_]+)/g, '_$1');
 
     // Convert PHP variables $varName into let/const or scoped variables:
-    // For assignments: $myVar = ... -> if not initialized, define it
-    // First, convert $name into name
     res = res.replace(/\$([a-zA-Z0-9_]+)/g, '$1');
 
-    // In JS, variables assigned without var/let/const in strict mode error.
-    // So find top-level assignments like `x = ...;` and ensure `var x = ...;`
-    // Matches: `\b([a-zA-Z0-9_]+)\s*=[^=]`
+    // Declare unassigned vars
     const assignedVars = new Set<string>();
     const assignRegex = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=(?!=)/g;
     let m;
     while ((m = assignRegex.exec(res)) !== null) {
       const varName = m[1];
-      if (!['let', 'const', 'var', 'if', 'while', 'for', 'return', 'case', 'function', '_GET', '_POST', '_SERVER', '_SESSION', '_COOKIE', '_REQUEST'].includes(varName)) {
+      if (!['let', 'const', 'var', 'if', 'while', 'for', 'return', 'case', 'function', '_GET', '_POST', '_SERVER', '_SESSION', '_COOKIE', '_REQUEST', 'include', 'require'].includes(varName)) {
         assignedVars.add(varName);
       }
     }
@@ -763,6 +757,40 @@ export class PhpEngine {
     }
 
     return declarations + res;
+  }
+
+  /**
+   * Safely replaces concatenation dots ONLY outside quoted string literals
+   */
+  private replaceConcatDots(str: string): string {
+    let result = '';
+    let inQuote: string | null = null;
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      if (inQuote) {
+        result += char;
+        if (char === inQuote && str[i - 1] !== '\\') {
+          inQuote = null;
+        }
+      } else {
+        if (char === '"' || char === "'") {
+          inQuote = char;
+          result += char;
+        } else if (char === '.') {
+          // Check if dot is a decimal number (like 3.14)
+          const prev = str[i - 1] || '';
+          const next = str[i + 1] || '';
+          if (/\d/.test(prev) && /\d/.test(next)) {
+            result += '.';
+          } else {
+            result += ' + ';
+          }
+        } else {
+          result += char;
+        }
+      }
+    }
+    return result;
   }
 
   private splitPhpArgs(argsStr: string): string[] {

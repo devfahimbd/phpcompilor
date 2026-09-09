@@ -40,6 +40,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           <span>PHP 8.3.4 (Browser Engine)</span>
         </div>
 
+        <div className="status-item hide-mobile" style={{ color: '#16a34a', fontWeight: 600 }}>
+          <span>⚡ Live Auto-Run</span>
+        </div>
+
         <div className="status-item">
           <FileCode size={14} />
           <span>

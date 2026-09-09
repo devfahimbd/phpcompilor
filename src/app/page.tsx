@@ -54,6 +54,9 @@ export default function CompilerPage() {
 
   const editorRef = useRef<any>(null);
   const phpEngineRef = useRef<PhpEngine | null>(null);
+  const autoRunTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const filesRef = useRef<VirtualFile[]>(files);
+  filesRef.current = files;
 
   // Active file object
   const activeFile = files.find((f) => f.id === activeFileId) || files[0];
@@ -62,37 +65,38 @@ export default function CompilerPage() {
   const cssFile = files.find((f) => f.name.toLowerCase() === 'style.css');
 
   // Handle running PHP compilation
-  const handleRun = useCallback(async () => {
+  const handleRun = useCallback(async (currentFiles?: VirtualFile[]) => {
+    if (autoRunTimerRef.current) {
+      clearTimeout(autoRunTimerRef.current);
+    }
+
+    const filesToRun = currentFiles || filesRef.current;
     setIsRunning(true);
 
     try {
       if (!phpEngineRef.current) {
-        phpEngineRef.current = new PhpEngine(files);
+        phpEngineRef.current = new PhpEngine(filesToRun);
       } else {
-        phpEngineRef.current.setFiles(files);
+        phpEngineRef.current.setFiles(filesToRun);
       }
 
       // Find entry file (e.g. index.php or active file if php)
+      const currentActive = filesToRun.find((f) => f.id === activeFileId) || filesToRun[0];
       const entryFile =
-        files.find((f) => f.name.toLowerCase() === 'index.php') ||
-        (activeFile.language === 'php' ? activeFile : files[0]);
+        filesToRun.find((f) => f.name.toLowerCase() === 'index.php') ||
+        (currentActive.language === 'php' ? currentActive : filesToRun[0]);
 
       const res = await phpEngineRef.current.run(entryFile.content);
       setExecutionResult(res);
 
-      // Trigger celebratory micro-confetti on successful run
-      if (res.success && res.output.length > 0) {
+      // Trigger micro-confetti on manual run if successful
+      if (res.success && res.output.length > 0 && !currentFiles) {
         confetti({
-          particleCount: 30,
-          spread: 45,
+          particleCount: 25,
+          spread: 40,
           origin: { y: 0.1, x: 0.9 },
           colors: ['#2563eb', '#3b82f6', '#10b981', '#f59e0b'],
         });
-      }
-
-      // On mobile, auto-switch to preview on run so the user sees the output immediately
-      if (window.innerWidth <= 900) {
-        setMobileView('preview');
       }
     } catch (err: any) {
       setExecutionResult({
@@ -113,21 +117,31 @@ export default function CompilerPage() {
     } finally {
       setIsRunning(false);
     }
-  }, [files, activeFile]);
+  }, [activeFileId]);
 
   // Run automatically on first mount
   useEffect(() => {
     const timer = setTimeout(() => {
       handleRun();
-    }, 400);
+    }, 300);
     return () => clearTimeout(timer);
   }, []);
 
-  // Update file content
+  // Update file content with real-time Auto-Run
   const handleContentChange = (newContent: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === activeFileId ? { ...f, content: newContent } : f))
+    const updatedFiles = files.map((f) =>
+      f.id === activeFileId ? { ...f, content: newContent } : f
     );
+    setFiles(updatedFiles);
+    filesRef.current = updatedFiles;
+
+    // Debounced real-time auto-compile (350ms)
+    if (autoRunTimerRef.current) {
+      clearTimeout(autoRunTimerRef.current);
+    }
+    autoRunTimerRef.current = setTimeout(() => {
+      handleRun(updatedFiles);
+    }, 350);
   };
 
   // Close a file tab
