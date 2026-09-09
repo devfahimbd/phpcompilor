@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-center">
         <button
           className="btn btn-primary"
-          onClick={onRun}
+          onClick={() => onRun()}
           disabled={isRunning}
           title="Compile & Run (Ctrl + Enter)"
           id="run-code-btn"

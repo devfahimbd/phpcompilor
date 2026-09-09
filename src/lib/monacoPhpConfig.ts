@@ -1,4 +1,5 @@
 import type { Monaco } from '@monaco-editor/react';
+import { phpLanguageConfig, phpMonarchDefinition } from './monacoPhpLanguage';
 
 export const TRUST_BLUE_THEME = 'trust-blue-light';
 
@@ -21,7 +22,9 @@ export function setupMonacoPhp(monaco: Monaco) {
       { token: 'tag.attribute.name.html', foreground: '4F46E5' }, // class="..."
       { token: 'tag.attribute.value.html', foreground: '059669' },
       { token: 'constant.php', foreground: 'C026D3', fontStyle: 'bold' }, // TRUE, FALSE
-      { token: 'support.function.php', foreground: '7C3AED' }, // built-in functions
+      { token: 'support.function.php', foreground: '7C3AED', fontStyle: 'bold' }, // built-in & user functions
+      { token: 'entity.name.function.php', foreground: '7C3AED', fontStyle: 'bold' },
+      { token: 'function.php', foreground: '7C3AED', fontStyle: 'bold' },
     ],
     colors: {
       'editor.background': '#FFFFFF',
@@ -34,11 +37,25 @@ export function setupMonacoPhp(monaco: Monaco) {
       'editor.lineHighlightBackground': '#F8FAFC',
       'editorGutter.background': '#FFFFFF',
       'editorIndentGuide.background1': '#E2E8F0',
-      'editorIndentGuide.activeBackground1': '#CBD5E1',
+      'editorIndentGuide.activeBackground1': '#2563EB',
+      'editorBracketPairGuide.background1': '#E2E8F0',
+      'editorBracketPairGuide.background2': '#E2E8F0',
+      'editorBracketPairGuide.background3': '#E2E8F0',
+      'editorBracketPairGuide.activeBackground1': '#2563EB',
+      'editorBracketPairGuide.activeBackground2': '#2563EB',
+      'editorBracketPairGuide.activeBackground3': '#2563EB',
       'editorBracketMatch.background': '#EFF6FF',
       'editorBracketMatch.border': '#3B82F6',
     },
   });
+
+  // Register enhanced PHP Monarch Tokenizer to highlight built-in and user functions in purple
+  try {
+    monaco.languages.setLanguageConfiguration('php', phpLanguageConfig);
+    monaco.languages.setMonarchTokensProvider('php', phpMonarchDefinition);
+  } catch (e) {
+    console.warn('Could not customize PHP monarch tokens provider:', e);
+  }
 
   // Register rich PHP autocomplete suggestions
   monaco.languages.registerCompletionItemProvider('php', {
@@ -159,7 +176,7 @@ export function setupMonacoPhp(monaco: Monaco) {
         {
           label: 'echo',
           kind: monaco.languages.CompletionItemKind.Function,
-          insertText: 'echo "${1:Hello, World!}\\n";',
+          insertText: 'echo "${1:Hello, World!}";',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           documentation: 'Output strings or variables to browser buffer',
           range,

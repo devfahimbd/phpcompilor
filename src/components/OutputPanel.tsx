@@ -48,9 +48,40 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
     if (!result) return '';
     let html = result.output || '';
 
-    // If there is virtual css and html doesn't link it directly, inject style tag
-    if (cssContent && !html.includes('<style') && !html.includes('style.css')) {
-      html = `<style>\n${cssContent}\n</style>\n` + html;
+    const hasHtmlStructure = /<\s*(html|body|div|p|h[1-6]|table|ul|ol|main|section)\b/i.test(html);
+    const baseStyle = `
+      <style>
+        body {
+          margin: 16px;
+          color: #0f172a;
+          line-height: 1.5;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          ${!hasHtmlStructure ? 'white-space: pre-wrap; font-family: Consolas, "Courier New", monospace; font-size: 14px;' : ''}
+        }
+        ${cssContent || ''}
+      </style>
+    `;
+
+    // Console interceptor script
+    const consoleBridge = `
+      <script>
+        (function() {
+          const send = (level, msg) => {
+            try { window.parent.postMessage({ type: 'PHP_IFRAME_LOG', level: level, message: msg }, '*'); } catch(e) {}
+          };
+          const _log = console.log, _warn = console.warn, _error = console.error;
+          console.log = function(...args) { _log.apply(console, args); send('info', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')); };
+          console.warn = function(...args) { _warn.apply(console, args); send('warn', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')); };
+          console.error = function(...args) { _error.apply(console, args); send('error', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')); };
+          window.onerror = function(msg) { send('error', msg); };
+        })();
+      </script>
+    `;
+
+    if (html.includes('<head>')) {
+      html = html.replace('<head>', `<head>${baseStyle}${consoleBridge}`);
+    } else {
+      html = `${baseStyle}${consoleBridge}${html}`;
     }
 
     return html;

@@ -19,6 +19,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   editorRef,
 }) => {
   const monacoRef = useRef<Monaco | null>(null);
+  const onRunRef = useRef(onRun);
+  onRunRef.current = onRun;
 
   const handleEditorWillMount = (monaco: Monaco) => {
     monacoRef.current = monaco;
@@ -30,7 +32,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     // Register Ctrl+Enter or Cmd+Enter to run code
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-      onRun();
+      onRunRef.current();
     });
 
     // Fix cursor misalignment: force Monaco to remeasure fonts once fonts are ready
@@ -105,6 +107,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             other: true,
             comments: false,
             strings: true,
+          },
+          guides: {
+            indentation: true,
+            bracketPairs: true,
+            bracketPairsHorizontal: true,
+            highlightActiveIndentation: true,
+            highlightActiveBracketPair: true,
           },
           bracketPairColorization: {
             enabled: true,

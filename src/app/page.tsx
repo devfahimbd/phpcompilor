@@ -57,6 +57,8 @@ export default function CompilerPage() {
   const autoRunTimerRef = useRef<NodeJS.Timeout | null>(null);
   const filesRef = useRef<VirtualFile[]>(files);
   filesRef.current = files;
+  const activeFileIdRef = useRef<string>(activeFileId);
+  activeFileIdRef.current = activeFileId;
 
   // Active file object
   const activeFile = files.find((f) => f.id === activeFileId) || files[0];
@@ -65,12 +67,30 @@ export default function CompilerPage() {
   const cssFile = files.find((f) => f.name.toLowerCase() === 'style.css');
 
   // Handle running PHP compilation
-  const handleRun = useCallback(async (currentFiles?: VirtualFile[]) => {
+  const handleRun = useCallback(async (currentFiles?: any) => {
     if (autoRunTimerRef.current) {
       clearTimeout(autoRunTimerRef.current);
     }
 
-    const filesToRun = currentFiles || filesRef.current;
+    // Strictly ensure filesToRun is an array of VirtualFiles, ignoring any MouseEvent
+    let filesToRun = Array.isArray(currentFiles) ? currentFiles : [...filesRef.current];
+
+    // If invoked manually, ensure the current editor buffer content is synced immediately
+    if (!currentFiles && editorRef.current) {
+      try {
+        const editorVal = editorRef.current.getValue();
+        if (typeof editorVal === 'string') {
+          filesToRun = filesToRun.map((f) =>
+            f.id === activeFileIdRef.current ? { ...f, content: editorVal } : f
+          );
+          filesRef.current = filesToRun;
+          setFiles(filesToRun);
+        }
+      } catch (err) {
+        // ignore if editor is unmounted
+      }
+    }
+
     setIsRunning(true);
 
     try {
@@ -80,11 +100,12 @@ export default function CompilerPage() {
         phpEngineRef.current.setFiles(filesToRun);
       }
 
-      // Find entry file (e.g. index.php or active file if php)
-      const currentActive = filesToRun.find((f) => f.id === activeFileId) || filesToRun[0];
-      const entryFile =
-        filesToRun.find((f) => f.name.toLowerCase() === 'index.php') ||
-        (currentActive.language === 'php' ? currentActive : filesToRun[0]);
+      // Prioritize active file if it is PHP, otherwise fallback to index.php or first file
+      const currentActive = filesToRun.find((f) => f.id === activeFileIdRef.current) || filesToRun[0];
+      const indexFile = filesToRun.find((f) => f.name.toLowerCase() === 'index.php');
+      const entryFile = (currentActive && currentActive.language === 'php')
+        ? currentActive
+        : (indexFile || filesToRun[0]);
 
       const res = await phpEngineRef.current.run(entryFile.content);
       setExecutionResult(res);
@@ -117,7 +138,7 @@ export default function CompilerPage() {
     } finally {
       setIsRunning(false);
     }
-  }, [activeFileId]);
+  }, []);
 
   // Run automatically on first mount
   useEffect(() => {
@@ -125,6 +146,42 @@ export default function CompilerPage() {
       handleRun();
     }, 300);
     return () => clearTimeout(timer);
+  }, [handleRun]);
+
+  // Global Ctrl+Enter / Cmd+Enter shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleRun();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRun]);
+
+  // Capture console messages from preview iframe into logs
+  useEffect(() => {
+    const handleIframeMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'PHP_IFRAME_LOG') {
+        setExecutionResult((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            logs: [
+              ...prev.logs,
+              {
+                type: e.data.level === 'error' ? 'error' : e.data.level === 'warn' ? 'warn' : 'info',
+                message: e.data.message,
+                timestamp: new Date().toLocaleTimeString(),
+              },
+            ],
+          };
+        });
+      }
+    };
+    window.addEventListener('message', handleIframeMessage);
+    return () => window.removeEventListener('message', handleIframeMessage);
   }, []);
 
   // Update file content with real-time Auto-Run

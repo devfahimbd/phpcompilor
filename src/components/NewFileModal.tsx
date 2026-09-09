@@ -82,11 +82,12 @@ export const NewFileModal: React.FC<NewFileModalProps> = ({
             <h3 className="modal-title">Create New File</h3>
           </div>
           <button
-            className="btn-icon btn-ghost"
+            className="modal-close-btn"
             onClick={onClose}
-            title="Close"
+            title="Close modal"
+            aria-label="Close"
           >
-            <X size={18} />
+            <X size={16} strokeWidth={2.5} />
           </button>
         </div>
 
