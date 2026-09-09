@@ -783,11 +783,12 @@ export class PhpEngine {
 
     // Handle double-quoted string variable interpolation: "Hello $name" -> `Hello ${name}`
     s = s.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, inner) => {
-      if (/\$[a-zA-Z_]\w*/.test(inner)) {
+      if (/(?<!\\)\$[a-zA-Z_]\w*/.test(inner)) {
         const converted = inner
-          .replace(/\{\$([a-zA-Z_]\w*)\}/g, '${$1}')
-          .replace(/\$([a-zA-Z_]\w*)/g, '${$1}')
-          .replace(/`/g, '\\`');
+          .replace(/`/g, '\\`')
+          .replace(/\{\s*\$([a-zA-Z_]\w*)\s*\}/g, '${$1}')
+          .replace(/(?<!\\)\$([a-zA-Z_]\w*)/g, '${$1}')
+          .replace(/\\\\\$/g, '$');
         return '`' + converted + '`';
       }
       return match;

@@ -9,22 +9,65 @@ export function setupMonacoPhp(monaco: Monaco) {
     base: 'vs',
     inherit: true,
     rules: [
-      { token: 'delimiter.php', foreground: 'E11D48', fontStyle: 'bold' }, // <?php and ?>
-      { token: 'keyword.php', foreground: '2563EB', fontStyle: 'bold' }, // echo, if, foreach, function
-      { token: 'variable.php', foreground: '0284C7', fontStyle: 'bold' }, // $variables
-      { token: 'variable.other.php', foreground: '0284C7' },
-      { token: 'string.php', foreground: '16A34A' }, // "strings"
+      // PHP Open & Close tags
+      { token: 'metatag.php', foreground: 'DC2626', fontStyle: 'bold' }, // <?php, <?=, ?>
+      { token: 'metatag.html', foreground: '64748B' }, // <!DOCTYPE ...>
+
+      // Keywords & Control structures
+      { token: 'keyword.php', foreground: '2563EB', fontStyle: 'bold' }, // echo, if, foreach, function, class, return
+
+      // Variables (Both standalone $name and interpolated "$name" in strings)
+      { token: 'variable.php', foreground: '0284C7', fontStyle: 'bold' }, // $variables (vibrant sky-blue)
+      { token: 'variable.predefined.php', foreground: '0284C7', fontStyle: 'bold' }, // $_GET, $_POST, $_SERVER
+      { token: 'variable.other.php', foreground: '0284C7', fontStyle: 'bold' },
+
+      // Strings
+      { token: 'string.php', foreground: '16A34A' }, // "strings", 'strings' (forest green)
       { token: 'string.html', foreground: '16A34A' },
-      { token: 'number.php', foreground: 'D97706' }, // 123, 45.6
-      { token: 'comment.php', foreground: '64748B', fontStyle: 'italic' }, // // comments
-      { token: 'type.php', foreground: '7C3AED', fontStyle: 'bold' }, // types
-      { token: 'tag.html', foreground: 'EA580C', fontStyle: 'bold' }, // <div>
-      { token: 'tag.attribute.name.html', foreground: '4F46E5' }, // class="..."
-      { token: 'tag.attribute.value.html', foreground: '059669' },
-      { token: 'constant.php', foreground: 'C026D3', fontStyle: 'bold' }, // TRUE, FALSE
-      { token: 'support.function.php', foreground: '7C3AED', fontStyle: 'bold' }, // built-in & user functions
+      { token: 'string.escape.php', foreground: 'D97706', fontStyle: 'bold' }, // \n, \t, \", \$, \\ (amber)
+      { token: 'string.escape.invalid.php', foreground: 'EF4444' },
+
+      // Numbers
+      { token: 'number.php', foreground: 'D97706', fontStyle: 'bold' }, // 123, 20
+      { token: 'number.float.php', foreground: 'D97706', fontStyle: 'bold' },
+      { token: 'number.hex.php', foreground: 'D97706', fontStyle: 'bold' },
+      { token: 'number.octal.php', foreground: 'D97706', fontStyle: 'bold' },
+      { token: 'number.binary.php', foreground: 'D97706', fontStyle: 'bold' },
+
+      // Constants & Booleans
+      { token: 'constant.php', foreground: 'C026D3', fontStyle: 'bold' }, // TRUE, FALSE, NULL, NAME, PI, __DIR__
+
+      // Functions (Built-in & User-defined)
+      { token: 'support.function.php', foreground: '7C3AED', fontStyle: 'bold' }, // var_dump, print_r, strlen, myFunc
       { token: 'entity.name.function.php', foreground: '7C3AED', fontStyle: 'bold' },
       { token: 'function.php', foreground: '7C3AED', fontStyle: 'bold' },
+
+      // Types
+      { token: 'type.php', foreground: '7C3AED', fontStyle: 'bold' }, // int, string, array, bool
+
+      // Operators (=, +, -, *, /, ., ->, =>, etc.) - Dark slate, NOT red!
+      { token: 'operator.php', foreground: '1E293B', fontStyle: 'bold' },
+      { token: 'delimiter.operator.php', foreground: '1E293B', fontStyle: 'bold' },
+
+      // Delimiters (Semicolons, commas, brackets) - Slate, NOT red!
+      { token: 'delimiter.php', foreground: '475569' }, // ;, ,
+      { token: 'delimiter.bracket.php', foreground: '334155' }, // {, }
+      { token: 'delimiter.parenthesis.php', foreground: '334155' }, // (, )
+      { token: 'delimiter.array.php', foreground: '334155' }, // [, ]
+
+      // Comments
+      { token: 'comment.php', foreground: '64748B', fontStyle: 'italic' }, // // comments, /* */, #
+      { token: 'comment.content.html', foreground: '64748B', fontStyle: 'italic' },
+      { token: 'comment.html', foreground: '64748B', fontStyle: 'italic' },
+
+      // Identifiers
+      { token: 'identifier.php', foreground: '0F172A' },
+
+      // HTML in mixed files
+      { token: 'tag.html', foreground: 'EA580C', fontStyle: 'bold' }, // <div>, <p>
+      { token: 'attribute.name', foreground: '4F46E5' }, // class="..."
+      { token: 'attribute.value', foreground: '059669' }, // "..."
+      { token: 'delimiter.html', foreground: '94A3B8' }, // <, >, /
     ],
     colors: {
       'editor.background': '#FFFFFF',
