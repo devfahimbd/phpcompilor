@@ -52,9 +52,11 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
     const baseStyle = `
       <style>
         body {
-          margin: 16px;
+          margin: 0;
+          padding: 20px;
+          box-sizing: border-box;
           color: #0f172a;
-          line-height: 1.5;
+          line-height: 1.6;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           ${!hasHtmlStructure ? 'white-space: pre-wrap; font-family: Consolas, "Courier New", monospace; font-size: 14px;' : ''}
         }
@@ -88,7 +90,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
   };
 
   return (
-    <div className="output-pane">
+    <div className="output-panel-container">
       <div className="output-header">
         <div className="output-nav">
           <button
