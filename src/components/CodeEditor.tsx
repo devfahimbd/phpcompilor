@@ -32,6 +32,25 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
       onRun();
     });
+
+    // Fix cursor misalignment: force Monaco to remeasure fonts once fonts are ready
+    if (typeof document !== 'undefined' && (document as any).fonts) {
+      (document as any).fonts.ready.then(() => {
+        monaco.editor.remeasureFonts();
+        editor.layout();
+      });
+    }
+
+    // Secondary remeasure ticks to ensure character width grid is 100% accurate
+    setTimeout(() => {
+      monaco.editor.remeasureFonts();
+      editor.layout();
+    }, 150);
+
+    setTimeout(() => {
+      monaco.editor.remeasureFonts();
+      editor.layout();
+    }, 600);
   };
 
   const getLanguage = () => {
@@ -63,7 +82,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         onChange={(val) => onChange(val || '')}
         options={{
           fontSize: 14,
-          fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+          fontFamily: "Consolas, 'Courier New', 'Lucida Console', monospace",
+          letterSpacing: 0,
           lineNumbers: 'on',
           lineNumbersMinChars: 3,
           minimap: { enabled: false },
@@ -73,9 +93,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           wordWrap: 'on',
           cursorBlinking: 'smooth',
           cursorSmoothCaretAnimation: 'on',
+          cursorWidth: 2,
+          cursorStyle: 'line',
+          fontLigatures: false,
           smoothScrolling: true,
           renderLineHighlight: 'all',
-          renderWhitespace: 'selection',
+          renderWhitespace: 'none',
           padding: { top: 12, bottom: 12 },
           suggestOnTriggerCharacters: true,
           quickSuggestions: {

@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'Fahim Ahmed' }],
   icons: {
-    icon: '/favicon.ico',
+    icon: '/logo.png',
+    apple: '/logo.png',
   },
 };
 

@@ -7,17 +7,13 @@ import {
   Sparkles,
   Download,
   Github,
-  Code2,
-  Layers,
 } from 'lucide-react';
-import { STARTER_TEMPLATES } from '../lib/templates';
 
 interface HeaderProps {
   onRun: () => void;
   onReset: () => void;
   onFormat: () => void;
   onDownloadZip: () => void;
-  onSelectTemplate: (templateId: string) => void;
   isRunning: boolean;
 }
 
@@ -26,16 +22,23 @@ export const Header: React.FC<HeaderProps> = ({
   onReset,
   onFormat,
   onDownloadZip,
-  onSelectTemplate,
   isRunning,
 }) => {
   return (
     <header className="app-header">
       <div className="header-left">
-        <a href="https://github.com/devfahimbd/phpcompilor" target="_blank" rel="noopener noreferrer" className="brand-badge">
-          <div className="brand-icon">
-            <Code2 size={20} strokeWidth={2.4} />
-          </div>
+        <a
+          href="https://github.com/devfahimbd/phpcompilor"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="brand-badge"
+          title="Eternity Global PHP Compiler"
+        >
+          <img
+            src="/logo.png"
+            alt="Eternity Global Logo"
+            className="brand-logo-img"
+          />
           <div className="brand-title">
             <span>PHP Compiler</span>
             <span className="version-tag">PHP 8.3</span>
@@ -51,11 +54,21 @@ export const Header: React.FC<HeaderProps> = ({
           title="Compile & Run (Ctrl + Enter)"
           id="run-code-btn"
         >
-          <Play size={16} fill="currentColor" />
+          <Play size={15} fill="currentColor" />
           <span className="header-btn-text">
             {isRunning ? 'Compiling...' : 'Run Code'}
           </span>
-          <span style={{ fontSize: '11px', opacity: 0.8, background: 'rgba(255,255,255,0.2)', padding: '1px 5px', borderRadius: '4px', marginLeft: '4px' }}>
+          <span
+            style={{
+              fontSize: '11px',
+              opacity: 0.85,
+              background: 'rgba(255,255,255,0.22)',
+              padding: '1px 6px',
+              borderRadius: '4px',
+              marginLeft: '4px',
+              fontWeight: 500,
+            }}
+          >
             Ctrl+↵
           </span>
         </button>
@@ -73,29 +86,12 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           className="btn btn-outline"
           onClick={onReset}
-          title="Reset to Template Defaults"
+          title="Reset to Defaults"
           id="reset-code-btn"
         >
           <RotateCcw size={15} />
           <span className="header-btn-text">Reset</span>
         </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
-          <select
-            className="form-select"
-            style={{ padding: '6px 10px', fontSize: '12.5px', height: '34px', cursor: 'pointer' }}
-            onChange={(e) => onSelectTemplate(e.target.value)}
-            defaultValue="fullstack-demo"
-            id="template-select"
-            title="Choose a Project Template"
-          >
-            {STARTER_TEMPLATES.map((tmpl) => (
-              <option key={tmpl.id} value={tmpl.id}>
-                📁 {tmpl.title}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div className="header-right">

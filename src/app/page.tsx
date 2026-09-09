@@ -38,7 +38,6 @@ const CodeEditor = dynamic(
 );
 
 export default function CompilerPage() {
-  const [currentTemplateId, setCurrentTemplateId] = useState<string>('fullstack-demo');
   const [files, setFiles] = useState<VirtualFile[]>(() => {
     const tmpl = STARTER_TEMPLATES[0];
     return tmpl.files.map((f, i) => ({
@@ -198,10 +197,10 @@ export default function CompilerPage() {
     }
   };
 
-  // Reset to starter template
+  // Reset to default files
   const handleReset = () => {
-    if (confirm('Are you sure you want to reset all files to default template?')) {
-      const tmpl = STARTER_TEMPLATES.find((t) => t.id === currentTemplateId) || STARTER_TEMPLATES[0];
+    if (confirm('Are you sure you want to reset all files to default?')) {
+      const tmpl = STARTER_TEMPLATES[0];
       const newFiles = tmpl.files.map((f, i) => ({
         ...f,
         id: `file-${Date.now()}-${i}`,
@@ -210,19 +209,6 @@ export default function CompilerPage() {
       setActiveFileId(newFiles[0].id);
       setTimeout(() => handleRun(), 100);
     }
-  };
-
-  // Switch template
-  const handleSelectTemplate = (templateId: string) => {
-    setCurrentTemplateId(templateId);
-    const tmpl = STARTER_TEMPLATES.find((t) => t.id === templateId) || STARTER_TEMPLATES[0];
-    const newFiles = tmpl.files.map((f, i) => ({
-      ...f,
-      id: `file-${Date.now()}-${i}`,
-    }));
-    setFiles(newFiles);
-    setActiveFileId(newFiles[0].id);
-    setTimeout(() => handleRun(), 100);
   };
 
   // Create new file from modal
@@ -252,7 +238,6 @@ export default function CompilerPage() {
         onReset={handleReset}
         onFormat={handleFormat}
         onDownloadZip={handleDownloadZip}
-        onSelectTemplate={handleSelectTemplate}
         isRunning={isRunning}
       />
 

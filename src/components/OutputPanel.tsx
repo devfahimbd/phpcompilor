@@ -88,34 +88,46 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
           </button>
         </div>
 
-        <div className="output-tools">
+        <div className="output-action-group">
           {activeTab === 'preview' && (
             <button
-              className="btn-icon btn-ghost"
+              className="output-action-btn"
               onClick={handleOpenExternal}
-              title="Open preview in new tab"
+              title="Open Live Preview in a new browser tab"
               id="open-new-window-btn"
             >
-              <ExternalLink size={15} />
+              <ExternalLink size={14} color="#2563eb" />
+              <span className="output-btn-label">New Tab</span>
             </button>
           )}
 
           <button
-            className="btn-icon btn-ghost"
+            className={`output-action-btn ${copied ? 'copied' : ''}`}
             onClick={handleCopy}
-            title={copied ? 'Copied!' : 'Copy raw output'}
+            title="Copy Raw Output to clipboard"
             id="copy-output-btn"
           >
-            {copied ? <Check size={15} color="#16a34a" /> : <Copy size={15} />}
+            {copied ? (
+              <>
+                <Check size={14} color="#16a34a" />
+                <span className="output-btn-label" style={{ color: '#16a34a' }}>Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy size={14} />
+                <span className="output-btn-label">Copy</span>
+              </>
+            )}
           </button>
 
           <button
-            className="btn-icon btn-ghost"
+            className="output-action-btn clear-btn"
             onClick={onClear}
-            title="Clear output"
+            title="Clear console and reset output"
             id="clear-output-btn"
           >
-            <Trash2 size={15} />
+            <Trash2 size={14} />
+            <span className="output-btn-label">Clear</span>
           </button>
         </div>
       </div>
