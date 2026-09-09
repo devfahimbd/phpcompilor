@@ -331,7 +331,18 @@ export class PhpEngine {
       is_numeric: (val: any) => !isNaN(parseFloat(val)) && isFinite(val),
       is_string: (val: any) => typeof val === 'string',
       is_int: (val: any) => Number.isInteger(val),
+      is_integer: (val: any) => Number.isInteger(val),
+      is_long: (val: any) => Number.isInteger(val),
+      is_float: (val: any) => typeof val === 'number' && !Number.isInteger(val),
+      is_double: (val: any) => typeof val === 'number' && !Number.isInteger(val),
       is_bool: (val: any) => typeof val === 'boolean',
+      is_scalar: (val: any) => ['string', 'number', 'boolean'].includes(typeof val),
+      is_object: (val: any) => typeof val === 'object' && val !== null && !Array.isArray(val),
+      is_callable: (val: any) => typeof val === 'function',
+      intval: (val: any, base = 10) => parseInt(val, base) || 0,
+      floatval: (val: any) => parseFloat(val) || 0,
+      strval: (val: any) => String(val ?? ''),
+      boolval: (val: any) => Boolean(val),
       gettype: (val: any) => {
         if (val === null) return 'NULL';
         if (Array.isArray(val)) return 'array';
@@ -341,11 +352,77 @@ export class PhpEngine {
         if (typeof val === 'object') return 'object';
         return 'unknown type';
       },
-      define: (name: string, value: any) => {
+      settype: (val: any, type: string) => {
+        switch (type.toLowerCase()) {
+          case 'integer':
+          case 'int':
+            return parseInt(val, 10) || 0;
+          case 'float':
+          case 'double':
+            return parseFloat(val) || 0;
+          case 'string':
+            return String(val ?? '');
+          case 'bool':
+          case 'boolean':
+            return Boolean(val);
+          default:
+            return val;
+        }
+      },
+      define: (name: string, value: any, caseInsensitive = false) => {
         this.constants[name] = value;
         return true;
       },
       defined: (name: string) => name in this.constants,
+      constant: (name: string) => this.constants[name],
+      get_defined_constants: () => ({ ...this.constants }),
+
+      // Additional Array & String Utilities
+      array_key_exists: (key: any, arr: any) => typeof arr === 'object' && arr !== null && key in arr,
+      array_search: (needle: any, haystack: any) => {
+        if (Array.isArray(haystack)) {
+          const idx = haystack.indexOf(needle);
+          return idx === -1 ? false : idx;
+        }
+        if (typeof haystack === 'object' && haystack !== null) {
+          for (const [k, v] of Object.entries(haystack)) {
+            if (v == needle) return k;
+          }
+        }
+        return false;
+      },
+      array_unique: (arr: any[]) => Array.isArray(arr) ? Array.from(new Set(arr)) : arr,
+      array_flip: (arr: any) => {
+        if (typeof arr !== 'object' || arr === null) return {};
+        const res: Record<string, any> = {};
+        for (const [k, v] of Object.entries(arr)) {
+          res[String(v)] = k;
+        }
+        return res;
+      },
+      array_product: (arr: any[]) => Array.isArray(arr) ? arr.reduce((a, b) => Number(a) * Number(b), 1) : 0,
+      sizeof: (arr: any) => Array.isArray(arr) ? arr.length : typeof arr === 'object' && arr !== null ? Object.keys(arr).length : 1,
+      range: (start: any, end: any, step = 1) => {
+        const s = Number(start) || 0;
+        const e = Number(end) || 0;
+        const st = Math.max(1, Number(step) || 1);
+        const res: number[] = [];
+        if (s <= e) {
+          for (let i = s; i <= e; i += st) res.push(i);
+        } else {
+          for (let i = s; i >= e; i -= st) res.push(i);
+        }
+        return res;
+      },
+      str_contains: (haystack: any, needle: any) => String(haystack ?? '').includes(String(needle ?? '')),
+      str_starts_with: (haystack: any, needle: any) => String(haystack ?? '').startsWith(String(needle ?? '')),
+      str_ends_with: (haystack: any, needle: any) => String(haystack ?? '').endsWith(String(needle ?? '')),
+      nl2br: (str: any) => String(str ?? '').replace(/\r\n|\n\r|\n|\r/g, '<br />\n'),
+      addslashes: (str: any) => String(str ?? '').replace(/'/g, "\\'").replace(/"/g, '\\"'),
+      stripslashes: (str: any) => String(str ?? '').replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
+      strcmp: (s1: any, s2: any) => String(s1).localeCompare(String(s2)),
+      strcasecmp: (s1: any, s2: any) => String(s1).toLowerCase().localeCompare(String(s2).toLowerCase()),
+      random_int: (min = 0, max = 2147483647) => Math.floor(Math.random() * (max - min + 1)) + min,
 
       // Files & includes
       file_get_contents: (filename: string) => {
@@ -569,8 +646,8 @@ export class PhpEngine {
 
     const jsCode = this.transpilePhpToJs(code);
     
-    // Create execution context sandbox
-    const context = {
+    // Create dynamic execution context sandbox with Proxy
+    const dynamicScope: Record<string, any> = {
       ...this.functions,
       ...this.constants,
       ...this.globals,
@@ -578,12 +655,55 @@ export class PhpEngine {
       __rawOutput: (text: string) => this.outputBuffer.push(text),
     };
 
-    const paramNames = Object.keys(context);
-    const paramValues = Object.values(context);
+    const currentConstants = this.constants;
+    dynamicScope.define = (name: string, value: any) => {
+      this.constants[name] = value;
+      dynamicScope[name] = value;
+      return true;
+    };
+    dynamicScope.defined = (name: string) => (name in dynamicScope) || (name in currentConstants);
+    dynamicScope.constant = (name: string) => dynamicScope[name] ?? currentConstants[name];
+    dynamicScope.get_defined_constants = () => ({ ...currentConstants, ...dynamicScope });
+
+    const contextProxy = new Proxy(dynamicScope, {
+      has(target, prop) {
+        if (typeof prop === 'string') {
+          if (['NaN', 'Infinity', 'undefined'].includes(prop)) {
+            return false;
+          }
+        }
+        return true;
+      },
+      get(target, prop) {
+        if (typeof prop === 'symbol') return (target as any)[prop];
+        if (prop in target) {
+          return target[prop];
+        }
+        if (prop in currentConstants) {
+          return currentConstants[prop];
+        }
+        // Allow standard built-in JS primitives and objects
+        if (['Math', 'Date', 'JSON', 'Array', 'Object', 'String', 'Number', 'Boolean', 'RegExp', 'Error', 'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'console', 'performance'].includes(prop)) {
+          return (globalThis as any)[prop];
+        }
+        // In PHP, accessing an undefined constant raises an error
+        throw new Error(`Undefined constant "${String(prop)}"`);
+      },
+      set(target, prop, val) {
+        (target as any)[prop] = val;
+        return true;
+      },
+    });
+
+    const wrappedJsCode = `
+      with (__ctx) {
+        ${jsCode}
+      }
+    `;
 
     try {
-      const runner = new Function(...paramNames, jsCode);
-      runner(...paramValues);
+      const runner = new Function('__ctx', wrappedJsCode);
+      runner(contextProxy);
     } catch (evalErr: any) {
       if (evalErr.message === '__PHP_EXIT__') {
         throw evalErr;
@@ -660,6 +780,18 @@ export class PhpEngine {
    */
   private convertPhpBlock(snippet: string): string {
     let s = snippet;
+
+    // Handle double-quoted string variable interpolation: "Hello $name" -> `Hello ${name}`
+    s = s.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, inner) => {
+      if (/\$[a-zA-Z_]\w*/.test(inner)) {
+        const converted = inner
+          .replace(/\{\$([a-zA-Z_]\w*)\}/g, '${$1}')
+          .replace(/\$([a-zA-Z_]\w*)/g, '${$1}')
+          .replace(/`/g, '\\`');
+        return '`' + converted + '`';
+      }
+      return match;
+    });
 
     // Handle single line comments and multi-line comments
     s = s.replace(/#.*$/gm, '//');

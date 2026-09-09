@@ -299,6 +299,8 @@ export const phpMonarchDefinition: any = {
     phpRoot: [
       // Function call identification (e.g. var_dump(...), print_r(...), custom_func(...))
       [/[a-zA-Z_]\w*(?=\s*\()/, 'support.function.php'],
+      // Uppercase constant identifiers (e.g. NAME, PI, SITE_URL)
+      [/[A-Z_][A-Z0-9_]{1,}/, 'constant.php'],
       [
         /[a-zA-Z_]\w*/,
         {
@@ -447,6 +449,10 @@ export const phpMonarchDefinition: any = {
     '__construct',
   ],
   phpFunctions: [
+    'define',
+    'defined',
+    'constant',
+    'get_defined_constants',
     'var_dump',
     'print_r',
     'printf',
